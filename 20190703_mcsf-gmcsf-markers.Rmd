@@ -1,0 +1,228 @@
+---
+title: "20190703_MCSF-GMCSF-scRNAseq-markers"
+author: "Cal Gunnarsson"
+output:
+  html_document:
+    theme: united
+    df_print: kable
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+---
+***
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  tidy.opts = list(width.cutoff = 120),
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## R Markdown
+
+```{r init}
+#Required libraries
+library(dplyr)
+library(Matrix)
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(reticulate)
+set.seed(666)
+
+#Set up file names and conditions
+m_files = c('data/reads.Sample1_MCSF_R1_001.fastq_bq10_star_corrected.umi.dge.txt', 'data/mcsf_day6_1.txt', 'data/mcsf_day6_2.txt')
+m_donors = c('2', '1a', '1a')
+g_files = c('data/gmcsf_day6_1.txt', 'data/gmcsf_day6_2.txt', 'data/reads.Sample2_gMCSF_R1_001.fastq_bq10_star_corrected.umi.dge.txt')
+g_donors = c('1a', '1a', '2')
+files = c(m_files, g_files)
+donornames = c(m_donors, g_donors)
+stimnames = c(rep('M', length(m_donors)), rep('G', length(g_donors)))
+```
+
+```{r fxns}
+#Returns Seurat Object with donor information and stimulation condition as metadata
+loadData <- function(filename, stimname, donorname) {
+  raw_counts <- read.table(file = filename, header = TRUE, row.names = 1, sep = '\t', stringsAsFactors = FALSE)
+  raw <- CreateSeuratObject(counts = raw_counts, project = "mcsf-gmcsf", min.cells = 3, min.features = 200)
+  raw$stim <- stimname
+  raw$donor <- donorname
+  Idents(raw) <- 'stim'
+  return(raw)
+}
+
+performQC <- function(raw, plot = FALSE){
+  #Calculate percent mitochondrial reads
+  mito.genes <- grep(pattern = "^MT-", x = rownames(x = GetAssayData(object = raw)), value = TRUE)
+  raw[['percent.mt']] <- (colSums(GetAssayData(object = raw, slot = "counts")[mito.genes, ]) / 
+                         colSums(GetAssayData(object = raw, slot = "counts")) * 100)
+  
+  if (plot) {
+    scatter <- FeatureScatter(object = raw, feature1 = 'nCount_RNA', feature2 = 'nFeature_RNA', group.by = 'percent.mt')
+    print(scatter)
+    
+    #Count QC
+    counts = raw$nCount_RNA
+    cts <- qplot(counts, geom = 'histogram', bins = 100)
+    cts_lo <- qplot(counts[counts < 5000], geom = 'histogram', bins = 100)
+    cts_hi <- qplot(counts[counts > 10000], geom = 'histogram', bins = 100)
+    cts_grid <- plot_grid(cts, cts_lo, cts_hi)
+    print(cts_grid)
+    
+    #Gene QC
+    genes = raw$nFeature_RNA
+    gen <- qplot(genes, geom = 'histogram', bins = 100)
+    gen_lo <- qplot(genes[genes < 1000], geom = 'histogram', bins = 100)
+    gen_grid <- plot_grid(gen, gen_lo)
+    print(gen_grid)
+    
+    vln <- VlnPlot(object = raw, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), group.by = 'stim', ncol = 3)
+    print(vln)
+  }
+  #Filter
+  raw <- subset(raw, subset = nCount_RNA > 2500 & nCount_RNA < 75000 & percent.mt < 20)
+  raw <- NormalizeData(raw, verbose = FALSE)
+  raw <- FindVariableFeatures(raw, selection.method = "vst", nfeatures = 4000)
+  return(raw)
+}
+
+
+scaleData <- function(raw) {
+  raw <- ScaleData(raw, vars.to.regress = c("nUMI", "percent.mt"), verbose = FALSE)
+  raw <- RunPCA(raw, features = VariableFeatures(object = raw), npcs = 100, verbose = FALSE)
+  p2 <- DimPlot(raw)
+  
+  #print(p2)
+  
+  return(raw)
+}
+```
+
+```{r load, fig.height = 6, fig.width = 8}
+# Load the datasets
+alldata <- lapply(1:length(files), function(i) i)
+mergeruns <- lapply(1:(length(unique(g_donors)) + length(unique(m_donors))), function(i) i)
+ctr = 0
+for (i in seq_along(files)){
+  alldata[[i]] <- loadData(files[i], stimnames[i],  donornames[i])
+  # merge runs with the same donor and stimulation 
+  if (i == 1 || donornames[i - 1] != donornames[i] || stimnames[i - 1] != stimnames[i]) {
+    if (ctr > 0) { 
+      #cellCycle(mergeruns[[ctr]])
+      mergeruns[[ctr]] <- performQC(mergeruns[[ctr]], plot=TRUE) 
+      mergeruns[[ctr]] <- scaleData(mergeruns[[ctr]])
+    }
+    ctr = ctr + 1
+    mergeruns[[ctr]] <- alldata[[i]]
+  } else {
+    mergeruns[[ctr]] <- merge(mergeruns[[ctr]], alldata[[i]])
+    
+  }
+}
+
+mergeruns[[length(mergeruns)]] <- performQC(mergeruns[[length(mergeruns)]], plot=TRUE) 
+scaleData(mergeruns[[length(mergeruns)]])
+
+# Merge all data 
+merged <- merge(alldata[[1]], y = alldata[2:6])
+merged <- performQC(merged, plot=TRUE)
+```
+
+## Perform integration
+```{r integration}
+#returns 
+integrate <- function(list, dims=50) {
+  k.filter = min(200, sapply(list, ncol))
+  list.anchors <- FindIntegrationAnchors(object.list = list, dims = 1:dims, k.filter = k.filter)
+  list.combined <- IntegrateData(anchorset = list.anchors, dims = 1:dims)
+  DefaultAssay(list.combined) <- "integrated"
+  return(list.combined)
+}
+
+splitdonor <- SplitObject(merged, split.by = 'donor')
+splitstim  <- SplitObject(merged, split.by = 'stim')
+
+donor.combined <- integrate(splitdonor)
+stim.combined  <- integrate(splitstim)
+runs.combined  <- integrate(mergeruns)
+```
+
+```{r analysis}
+cluster <- function(data, npcs = 30, resolution = 0.5){
+  data <- ScaleData(data)#, vars.to.regress = c("nUMI", "percent.mt", "CC.Difference"), verbose = FALSE)
+  data <- RunPCA(data, npcs = 50, verbose = FALSE)
+  # t-SNE and Clustering
+  data <- RunUMAP(data, reduction = "pca", dims = 1:npcs)
+  data <- RunTSNE(data, reduction = "pca", dims = 1:npcs)
+  data <- FindNeighbors(data, reduction = "pca", dims = 1:npcs)
+  data <- FindClusters(data, resolution = resolution)
+  
+  return(data)
+}
+
+splitstim <- cluster(stim.combined)
+merged <- cluster(merged)
+splitruns <- cluster(runs.combined)
+splitdonor <- cluster(donor.combined)
+```
+
+```{r visualization, fig.height = 12, fig.width = 6}
+# Visualization
+vizClust <- function(data, reduction = "umap"){
+  p1 <- DimPlot(data, reduction = reduction, split.by = "stim")
+  p2 <- DimPlot(data, reduction = reduction, split.by = "donor")
+  p3 <- DimPlot(data, reduction = reduction, label = TRUE)
+  print(plot_grid(p1, p2, p3, ncol = 1))
+}
+
+vizClust(merged)
+vizClust(splitdonor)
+vizClust(splitstim)
+vizClust(splitruns)
+
+```
+
+```{r markers}
+
+markers <- function(data){
+  DefaultAssay(data) <- 'RNA'
+  Idents(data) <- 'stim'
+  avg.exp <- log1p(AverageExpression(data, verbose = FALSE)$RNA)
+  avg.exp$gene <- rownames(avg.exp)
+  p1 <- ggplot(avg.exp, aes(M, G)) + geom_point() + ggtitle("Mph")
+  #print(p1)
+  roc.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='roc', verbose = FALSE)
+  wilcox.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='wilcox', verbose=FALSE)
+  
+  g.response = merge(roc.markers, wilcox.markers, by=0, all=TRUE)
+  print(head(g.response, n = 15))
+  
+  return(g.response)
+}
+
+DefaultAssay(splitruns) <- 'RNA'
+splitruns.markers <- markers(splitruns)
+```
+```{r findmarkers, fig.height = 20, fig.width = 12}
+markers <- splitruns.markers[splitruns.markers$myAUC > 0.70, ]
+markers <- c(markers$Row.names)
+print(markers)
+
+plot.stim <- VlnPlot(splitruns, features = markers, group.by ='stim', pt.size = 0.01, combine = TRUE)
+print(plot.stim)
+plot.donor <- VlnPlot(splitruns, features = markers, split.by='stim', group.by='donor', pt.size = 0, combine=TRUE)
+print(plot.donor)
+plot.clust <- VlnPlot(splitruns, features = markers, split.by='stim', pt.size = 0, combine = TRUE)
+print(plot.clust)
+
+plot.qc <- VlnPlot(splitruns, features = c("nCount_RNA", "percent.mt"), pt.size = 0, combine = TRUE)
+print(plot.qc)
+
+#CombinePlots(plots = plots, ncol = 1)
+```
+
+```{r featureplot, fig.height = 100, fig.width = 8}
+FeaturePlot(splitruns, features = markers, split.by = "stim", pt.size = 0.15, 
+    cols = c("grey", "red"))
+```
+
