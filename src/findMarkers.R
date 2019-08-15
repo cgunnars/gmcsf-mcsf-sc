@@ -8,6 +8,7 @@ loadData <- function(filename, stimname, donorname) {
   return(raw)
 }
 
+#Takes in Seurat Object and returns updated Object with percent mitochondria content in slot "percent.mt"
 calcMito <- function(raw) {
   mito.genes <- grep(pattern = "^MT-", x = rownames(x = GetAssayData(object = raw)), value = TRUE)
   nmito <- Matrix::colSums(GetAssayData(object = raw, slot = "counts")[mito.genes, ])
@@ -16,6 +17,7 @@ calcMito <- function(raw) {
   return(raw)
 }
 
+#Takes in Seurat Object and 
 performQC <- function(raw, plot = FALSE){
   #Calculate percent mitochondrial reads
   raw <- calcMito(raw)
@@ -57,6 +59,8 @@ scaleData <- function(raw) {
   return(raw)
 }
 
+#Performs differential expression analysis to find markers of stimulation condition,
+#returns table of results for each gene
 markers <- function(data){
   #DefaultAssay(data) <- 'RNA'
   Idents(data) <- 'stim'
@@ -64,8 +68,8 @@ markers <- function(data){
   avg.exp$gene <- rownames(avg.exp)
   p1 <- ggplot(avg.exp, aes(M, G)) + geom_point() + ggtitle("Mph")
   #print(p1)
-  roc.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='roc', verbose = FALSE)
-  wilcox.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='wilcox', verbose=FALSE)
+  roc.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='roc', min.pct = 0, logfc.threshold = 0, verbose = FALSE)
+  wilcox.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='wilcox', min.pct = 0, logfc.threshold = 0, verbose=FALSE)
   
   g.response = merge(roc.markers, wilcox.markers, by=0, all=TRUE)
   print(head(g.response, n = 15))
@@ -133,6 +137,7 @@ print(plot.donor)
 plot.clust <- VlnPlot(mergeruns, features = markers, split.by='stim', pt.size = 0, combine = TRUE)
 print(plot.clust)
 
+genes = tibble::deframe(mergeruns.markers[])
 allGenes = tibble::deframe(mergeruns.markers['myAUC'])
 names(allGenes) <- mergeruns.markers$Row.names
 allGenes <- sort(allGenes, decreasing = TRUE)
@@ -173,3 +178,29 @@ kk <- gseKEGG(gene         = KEGGgenes,
               pvalueCutoff = 0.05,
               verbose      = FALSE)
 egmt <- enricher(EG_IDs, TERM2GENE=c5)
+
+mkegg_df <- (msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:KEGG") 
+             %>% dplyr::select(gs_name, gene_symbol) %>% as.data.frame())
+mreact_df <- (msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:REACTOME")
+              %>% dplyr::select(gs_name, gene_symbol) %>% as.data.frame())
+mbio_df <- (msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:BIOCARTA")
+            %>% dplyr::select(gs_name, gene_symbol) %>% as.data.frame())
+mgomf_df <- (msigdbr(species = "Homo sapiens", category = "C5", subcategory = "MF")
+             %>% dplyr::select(gs_name, gene_symbol) %>% as.data.frame())
+mgobp_df <- (msigdbr(species = "Homo sapiens", category = "C5", subcategory = "BP")
+             %>% dplyr::select(gs_name, gene_symbol) %>% as.data.frame())
+
+background <- Reduce(intersect, 
+                     lapply(alldata, function(x) GetAssayData(object = x)@Dimnames[[1]]))
+background <- Matrix::rowSums(GetAssayData(mergeruns, slot = 'counts')[background, ])
+background <- names(background[background > 100])
+
+msigk <- enricher(gene = markers, TERM2GENE = mkegg_df, universe = background)
+msigmf <- enricher(gene = markers, TERM2GENE = mgomf_df, universe = background)
+msigbp <- enricher(gene = markers, TERM2GENE = mgobp_df, universe = background)
+mreact <- enricher(gene = markers, TERM2GENE = mreact_df, universe = background)
+mbio <- enricher(gene = markers, TERM2GENE = mbio_df, universe = background)
+
+gseak <- GSEA(allGenes, TERM2GENE = mkegg_df)
+gseamf <- GSEA(allGenes, TERM2GENE = mgomf_df)
+gseabp <- GSEA(allGenes, TERM2GENE = mgobp_df)
