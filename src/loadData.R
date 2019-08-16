@@ -21,10 +21,9 @@ loadAll <- function(files, mergeruns, stimnames, donornames, outfile) {
     } else {
       mergeruns[[ctr]] <- merge(mergeruns[[ctr]], alldata[[i]])
     }
-    
-    save(mergeruns, file=outfile)
-    return(mergeruns)
   }
+  saveRDS(mergeruns, outfile)
+  return(mergeruns)
 }
 
 library(dplyr)

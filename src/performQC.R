@@ -7,16 +7,20 @@ calcMito <- function(raw) {
   return(raw)
 }
 
-performQC <- function(raw, min_count = 2500, max_count = 75000, mt = 20){
+performQC <- function(raw, minct = 2500, maxct = 75000, mt = 20){
   #Calculate percent mitochondrial reads
   raw <- calcMito(raw)
-  #Filter
-  raw <- subset(raw, subset = nCount_RNA > min_count & nCount_RNA < max_count & percent.mt < mt)
+  #Filter based on counts and mitochondrial reads
+  expr <- FetchData(object = raw, vars = c('nCount_RNA'))
+  raw <- raw[, which(x = (expr$nCount_RNA > minct & expr$nCount_RNA < maxct))]
+  expr <- FetchData(object = raw, vars = c('percent.mt'))
+  raw <- raw[, which(x = expr$percent.mt < mt)]
+  #Normalize data
   raw <- NormalizeData(raw, verbose = FALSE)
-  raw <- FindVariableFeatures(raw, selection.method = "vst", nfeatures = 4000)
+  raw <- FindVariableFeatures(raw, selection.method = "vst", nfeatures = 2000)
+  
   return(raw)
-
-  }
+}
 
 
 library(Matrix)
@@ -27,13 +31,35 @@ set.seed(666)
 parser <- ArgumentParser(description='File i/o for single cell RNAseq')
 parser$add_argument('-i', type="character", nargs=1,
                     help='raw data file for input')
+parser$add_argument('--minct', type='integer', nargs=1,
+                    default = 2500,
+                    help='maximum counts/cell')
+parser$add_argument('--maxct', type='integer', nargs=1,
+                    default = 75000,
+                    help='maximum counts/cell')
+parser$add_argument('--mt', type='integer', nargs=1,
+                    default = 20, help='mitochondrial content')
+parser$add_argument('--regnUMI', action="store_true", default=TRUE,
+                    help='Regress out nUMI [default]')
+parser$add_argument('--regmito', action='store_true', default=TRUE,
+                    help='Regress out mitochondrial content [default]')
 parser$add_argument('-o', type='character', nargs=1,
                     help='qc data file')
 args <- parser$parse_args()
+
 mergeruns <- readRDS(args$i)
-for (i in seq_along(mergeruns)) {
-  run <- performQC(mergeruns[[i]])
-  mergeruns[[i]] <- ScaleData(run, vars.to.regress = c("nUMI", "percent.mt"), verbose = FALSE)
+
+regress_out = vector()
+if (args$regnUMI) {
+  regress_out = append(regress_out, 'nUMI')
 }
-mergeruns <- merge(mergeruns[[1]], y = mergeruns[2:4])
-save(mergeruns, file=args$o)
+if (args$regmito) {
+  regress_out = append(regress_out, 'percent.mt') 
+}
+
+for (i in seq_along(mergeruns)) {
+  mergeruns[[i]] <- performQC(mergeruns[[i]], minct = args$minct, maxct = args$maxct, mt = args$mt)
+  mergeruns[[i]] <- ScaleData(mergeruns[[i]], vars.to.regress = regress_out, verbose = FALSE)
+}
+mergeruns <- merge(mergeruns[[1]], y = mergeruns[2:length(mergeruns)])
+saveRDS(mergeruns, args$o)
