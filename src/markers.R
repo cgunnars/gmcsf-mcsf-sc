@@ -24,11 +24,19 @@ parser$add_argument('--quick', action='store_false', default=FALSE,
                     help='omit full data analysis')
 args <- parser$parse_args()
 mergeruns <- readRDS(args$i)
-mergeruns.markers <- markers(mergeruns, quick=args$quick)
-markers <- mergeruns.markers[mergeruns.markers$myAUC > 0.70, ]
-markers <- c(markers$Row.names)
 
+mergeruns.markers <- markers(mergeruns, quick=args$quick)
 saveRDS(mergeruns.markers, paste('./data/', args$o, '.rds', sep = ''))
-markerfile<-file(paste(args$o, '.txt', sep = ''))
-writeLines(markers, markerfile)
-close(markerfile)
+
+g_markers <- mergeruns.markers[(mergeruns.markers$myAUC > 0.70), ]
+m_markers <- mergeruns.markers[(mergeruns.markers$myAUC < 0.30), ]
+g_markers <- c(g_markers$Row.names)
+m_markers <- c(m_markers$Row.names)
+
+g_markerfile<-file(paste(args$o, '-g.txt', sep = ''))
+writeLines(g_markers, g_markerfile)
+close(g_markerfile)
+
+m_markerfile<-file(paste(args$o, '-m.txt', sep=''))
+writeLines(m_markers, m_markerfile)
+close(m_markerfile)

@@ -15,10 +15,6 @@ performQC <- function(raw, minct = 2500, maxct = 75000, mt = 20){
   raw <- raw[, which(x = (expr$nCount_RNA > minct & expr$nCount_RNA < maxct))]
   expr <- FetchData(object = raw, vars = c('percent.mt'))
   raw <- raw[, which(x = expr$percent.mt < mt)]
-  #Normalize data
-  raw <- NormalizeData(raw, verbose = FALSE)
-  raw <- FindVariableFeatures(raw, selection.method = "vst", nfeatures = 2000)
-  
   return(raw)
 }
 
@@ -72,8 +68,14 @@ if (args$regmito) {
 
 for (i in seq_along(mergeruns)) {
   mergeruns[[i]] <- performQC(mergeruns[[i]], minct = args$minct, maxct = args$maxct, mt = args$mt)
-  mergeruns[[i]] <- ScaleData(mergeruns[[i]], vars.to.regress = regress_out, verbose = FALSE)
 }
 backgroundSet(mergeruns)
+
 mergeruns <- merge(mergeruns[[1]], y = mergeruns[2:length(mergeruns)])
+
+#Normalize data
+mergeruns <- NormalizeData(mergeruns, verbose = TRUE)
+mergeruns <- ScaleData(mergeruns, vars.to.regress = regress_out, verbose = TRUE)
+#mergeruns <- FindVariableFeatures(mergeruns, selection.method = "vst", nfeatures = 2000)
+
 saveRDS(mergeruns, args$o)
