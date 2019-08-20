@@ -29,6 +29,6 @@ markers <- mergeruns.markers[mergeruns.markers$myAUC > 0.70, ]
 markers <- c(markers$Row.names)
 
 saveRDS(mergeruns.markers, paste('./data/', args$o, '.rds', sep = ''))
-markerfile<-file(paste('./data/', args$o, '.txt', sep = ''))
+markerfile<-file(paste(args$o, '.txt', sep = ''))
 writeLines(markers, markerfile)
 close(markerfile)

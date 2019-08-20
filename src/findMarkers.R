@@ -142,7 +142,6 @@ allGenes = tibble::deframe(mergeruns.markers['myAUC'])
 names(allGenes) <- mergeruns.markers$Row.names
 allGenes <- sort(allGenes, decreasing = TRUE)
 
-geneSel = allGenes[markers]
 sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP", 
                     allGenes = allGenes, geneSel = (function(x) x > 0.70),
                     nodeSize = 10, annot = annFUN.org, mapping = 'org.Hs.eg.db', ID="symbol")

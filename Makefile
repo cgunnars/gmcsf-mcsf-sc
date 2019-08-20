@@ -18,7 +18,7 @@ data/raw-mergeruns.Rds: src/loadData.R $(RAW_DATA)
 	--mdonors $(M_DONORS) --gdonors $(G_DONORS) -o $@
 
 qc: data/qc-mergeruns.Rds
-data/qc-mergeruns.Rds: src/performQC.R data/raw-mergeruns.Rds
+data/qc-mergeruns.Rds: src/performQC.R #data/raw-mergeruns.Rds
 	Rscript $< -i data/raw-mergeruns.rds -o $@
 
 markers: data/markers.txt data/markers.Rds
@@ -30,9 +30,48 @@ data/markers.Rds:
 		make $<; \
 	fi	
 
+fig-new-markers: fig/markers-stim.svg fig/markers-donor.svg
+fig-can-markers: fig/markers-can-stim.svg fig/markers-can-donor.svg
+fig-markers: fig-new-markers fig-can-markers
+
 fig/markers-stim.svg: src/plotMarkers.R data/qc-mergeruns.Rds
 	Rscript $< -i data/qc-mergeruns.Rds -m data/markers.txt -o fig/markers
-fig/markers-donor.svg: src/plotMarkers.R data/qc-mergeruns.Rds
+fig/markers-donor.svg: 
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+fig/markers-can-stim.svg: src/plotMarkers.R data/qc-mergeruns.Rds
+	Rscript $< -i data/qc-mergeruns.Rds -m data/markers-canonical.txt -o fig/markers-can
+fig/markers-can-donor.svg: 
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+
+data/enrich-mf.csv: src/pathwayAnalysis.R 
+	Rscript $< -i data/background-genes.txt -m data/markers.txt -o data/enrich
+data/enrich-mf-simp.csv:
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+data/enrich-bp.csv:
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+data/enrich-bp-simp.csv:
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+data/enrich-kegg.csv:
+	@if test -f $@; then :; else \
+		rm -f $<; \
+		make $<; \
+	fi
+data/enrich-reactome.csv:
 	@if test -f $@; then :; else \
 		rm -f $<; \
 		make $<; \

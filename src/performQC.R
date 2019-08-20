@@ -22,6 +22,19 @@ performQC <- function(raw, minct = 2500, maxct = 75000, mt = 20){
   return(raw)
 }
 
+backgroundSet <- function(mergeruns) {
+  background <- Reduce(intersect, 
+                       lapply(mergeruns, function(x) GetAssayData(object = x)@Dimnames[[1]]))
+  background <- Matrix::rowSums(GetAssayData(merge(mergeruns[[1]], mergeruns[2:length(mergeruns)]), slot = 'counts')[background, ])
+  
+  background <- names(background[background > 100])
+  
+  outfile<-file('data/background-genes.txt')
+  writeLines(background, outfile)
+  close(outfile)
+}
+
+
 
 library(Matrix)
 library(Seurat)
@@ -61,5 +74,6 @@ for (i in seq_along(mergeruns)) {
   mergeruns[[i]] <- performQC(mergeruns[[i]], minct = args$minct, maxct = args$maxct, mt = args$mt)
   mergeruns[[i]] <- ScaleData(mergeruns[[i]], vars.to.regress = regress_out, verbose = FALSE)
 }
+backgroundSet(mergeruns)
 mergeruns <- merge(mergeruns[[1]], y = mergeruns[2:length(mergeruns)])
 saveRDS(mergeruns, args$o)

@@ -22,9 +22,11 @@ loadAll <- function(files, mergeruns, stimnames, donornames, outfile) {
       mergeruns[[ctr]] <- merge(mergeruns[[ctr]], alldata[[i]])
     }
   }
+  
   saveRDS(mergeruns, outfile)
   return(mergeruns)
 }
+
 
 library(dplyr)
 library(Matrix)

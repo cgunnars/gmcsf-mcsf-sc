@@ -16,8 +16,8 @@ con <- file(args$m, open="r")
 markers <- readLines(con)
 close(con)
 
-plot.stim <- VlnPlot(mergeruns, features = markers, group.by ='stim', pt.size = 0.01, combine = TRUE)
-plot.donor <- VlnPlot(mergeruns, features = markers, split.by='stim', group.by='donor', pt.size = 0, combine=TRUE)
+plot.stim <- VlnPlot(mergeruns, features = markers, group.by ='stim', pt.size = 0.01, combine = TRUE, ncol = 4)
+ggsave(paste(args$o, '-stim.svg', sep=''), plot=plot.stim, height = length(markers) / 4 * 3, width = 12)
 
-ggsave(paste(args$o, '-stim.svg', sep=''), plot=plot.stim, height = 20, width = 12)
-ggsave(paste(args$o, '-donor.svg', sep=''), plot=plot.donor, height = 20, width = 12)
+plot.donor <- VlnPlot(mergeruns, features = markers, split.by='stim', group.by='donor', pt.size = 0, combine=TRUE, ncol = 4)
+ggsave(paste(args$o, '-donor.svg', sep=''), plot=plot.donor, height = length(markers) / 4 * 3, width = 12)
