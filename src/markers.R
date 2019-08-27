@@ -7,8 +7,29 @@ markers <- function(data, quick = FALSE){
   }
   roc.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='roc', min.pct = 0, logfc.threshold = fc.thresh, verbose = FALSE)
   wilcox.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='wilcox', min.pct = 0, logfc.threshold = fc.thresh, verbose=FALSE)
-  g.response = merge(roc.markers, wilcox.markers, by=0, all=TRUE)
+  g.response = merge(roc.markers, wilcox.markers, all=TRUE)
   return(g.response)
+}
+
+writeMarkers <- function(data, outstem, cond) {
+  if (cond == 'g') {
+    markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff > 0.25), ]
+    markers <- data[(data$myAUC > 0.70), ]
+  } else {
+    markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff < -0.25), ]
+    markers <- data[(data$myAUC < 0.30), ]
+  }
+  markers_all <- c(markers_all$Row.names)
+  markers <- c(markers$Row.names)
+  print(markers)
+  
+  markers_all_file <- file(paste(outstem, '-all-' , cond, '.txt', sep = ''))
+  writeLines(markers_all, markers_all_file)
+  close(markers_all_file)
+
+  markers_file <- file(paste(outstem, '-', cond, '.txt', sep=''))
+  writeLines(markers, markers_file)
+  close(markers_file)
 }
 
 library(Seurat)
@@ -22,21 +43,27 @@ parser$add_argument('-o', type='character', nargs=1,
                     help='filestem for marker output')
 parser$add_argument('--quick', action='store_false', default=FALSE,
                     help='omit full data analysis')
+parser$add_argument('--split', action='store_false', default=FALSE,
+                    help='split by donor for analysis')
 args <- parser$parse_args()
 mergeruns <- readRDS(args$i)
 
-mergeruns.markers <- markers(mergeruns, quick=args$quick)
+if(args$split) {
+  mergeruns <- SplitObject(mergeruns, split.by='donor')
+  markers.donor <- lapply(1:length(mergeruns), c)
+  for (i in seq_along(mergeruns)) {
+    markers.donor[i] <- markers(mergeruns[[i]], quick=args$quick)
+    writeMarkers(markers.donor[i], paste0(args$o, '-', i), 'g')
+    writeMarkers(markers.donor[i], paste0(args$o, '-', i), 'm')
+  }
+  mergeruns.markers <- Reduce(function(x, y) merge(x = x, y = y, by = 'Row.names'),
+                              markers.donor)
+} else {
+  mergeruns.markers <- markers(mergeruns, quick=args$quick)
+  writeMarkers(mergeruns.markers, args$o, 'g')
+  writeMarkers(mergeruns.markers, args$o, 'm')
+}
+
 saveRDS(mergeruns.markers, paste('./data/', args$o, '.rds', sep = ''))
 
-g_markers <- mergeruns.markers[(mergeruns.markers$myAUC > 0.70), ]
-m_markers <- mergeruns.markers[(mergeruns.markers$myAUC < 0.30), ]
-g_markers <- c(g_markers$Row.names)
-m_markers <- c(m_markers$Row.names)
 
-g_markerfile<-file(paste(args$o, '-g.txt', sep = ''))
-writeLines(g_markers, g_markerfile)
-close(g_markerfile)
-
-m_markerfile<-file(paste(args$o, '-m.txt', sep=''))
-writeLines(m_markers, m_markerfile)
-close(m_markerfile)

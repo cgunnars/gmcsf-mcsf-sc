@@ -15,7 +15,9 @@ mergeruns <- readRDS(args$i)
 con <- file(args$m, open="r")
 markers <- readLines(con)
 close(con)
+
 mergeruns$stimdonor <- paste0(mergeruns$stim, mergeruns$donor)
 Idents(mergeruns) <- 'stimdonor'
-heatmap <- DoHeatmap(mergeruns, features = markers)
+levels(mergeruns) <- c('M1', 'M2', 'G1', 'G2')
+heatmap <- DoHeatmap(subset(mergeruns, downsample = 250), features = markers)
 ggsave(args$o, plot=heatmap)
