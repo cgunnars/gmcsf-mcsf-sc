@@ -58,6 +58,17 @@ fig/%-donor.svg:
 		rm -f $<; \
 		make $<; \
 	fi
+fig2: fig/fig2a-markers-canonical-subset.svg \
+      fig/fig2c-markers-all-subset.svg \
+      fig/fig2d-mf-simp.svg
+
+fig/fig2a-%.svg: src/plotMarkers.R
+	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/fig2a-$* \
+	-ncol 4
+
+fig/fig2c-%.svg: src/plotMarkers.R
+	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/fig2c-$* \
+	-ncol 4 
 
 ENRICH_FILES = data/enrich/g-mf.csv data/enrich/m-mf.csv \
 	       data/enrich/g-bp.csv data/enrich/m-bp.csv \
@@ -80,6 +91,7 @@ data/enrich/%.csv: data/enrich/m-mf.csv
 
 heatmap: fig/heatmap-markers-all.svg fig/heatmap-markers.svg fig/heatmap-markers-canonical.svg
 data/markers-canonical.txt: 
+data/markers-canonical-subset.txt:
 data/markers-%.txt: data/markers-%-g.txt data/markers-%-m.txt
 	cat data/$*-g.txt data/$*-m.txt > data/$*.txt ;
 fig/heatmap-%.svg: src/plotHeatmap.R data/%.txt
@@ -94,5 +106,10 @@ goplot: fig/g-mf-simp.svg fig/m-mf-simp.svg \
 	fig/g-bp-simp.svg fig/m-bp-simp.svg \
 	fig/all-g-mf-simp.svg fig/all-m-mf-simp.svg \
 	fig/all-g-bp-simp.svg fig/all-m-bp-simp.svg 
-fig/%.svg: src/plotGO.R #data/enrich/%.csv
-	Rscript $< -i data/enrich/$*.csv -o $@
+
+fig/fig2d-%-simp.svg: src/plotGO.R
+	Rscript $< -i data/enrich/g-$*-simp.csv data/enrich/m-$*-simp.csv \
+	-o $@
+fig/%-simp.svg: src/plotGO.R #data/enrich/%.csv
+	Rscript $< -i data/enrich/$*-simp.csv -o $@
+
