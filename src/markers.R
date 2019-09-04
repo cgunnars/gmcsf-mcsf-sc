@@ -7,11 +7,15 @@ markers <- function(data, quick = FALSE){
   }
   roc.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='roc', min.pct = 0, logfc.threshold = fc.thresh, verbose = FALSE)
   wilcox.markers <- FindMarkers(data, ident.1 = "G", ident.2 = "M", test.use='wilcox', min.pct = 0, logfc.threshold = fc.thresh, verbose=FALSE)
-  g.response = merge(roc.markers, wilcox.markers, all=TRUE)
+  print(head(roc.markers))
+  print(head(wilcox.markers))
+  g.response <- merge(x = roc.markers, y = wilcox.markers, by = 'row.names')
+  print(head(g.response))
   return(g.response)
 }
 
 writeMarkers <- function(data, outstem, cond) {
+  print(head(data))
   if (cond == 'g') {
     markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff > 0.25), ]
     markers <- data[(data$myAUC > 0.70), ]
@@ -19,9 +23,10 @@ writeMarkers <- function(data, outstem, cond) {
     markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff < -0.25), ]
     markers <- data[(data$myAUC < 0.30), ]
   }
+  print(head(markers))
+  print(head(markers_all))
   markers_all <- c(markers_all$Row.names)
   markers <- c(markers$Row.names)
-  print(markers)
   
   markers_all_file <- file(paste(outstem, '-all-' , cond, '.txt', sep = ''))
   writeLines(markers_all, markers_all_file)
@@ -51,10 +56,12 @@ mergeruns <- readRDS(args$i)
 if(args$split) {
   mergeruns <- SplitObject(mergeruns, split.by='donor')
   markers.donor <- lapply(1:length(mergeruns), c)
+  print(markers.donor)
   for (i in seq_along(mergeruns)) {
-    markers.donor[i] <- markers(mergeruns[[i]], quick=args$quick)
-    writeMarkers(markers.donor[i], paste0(args$o, '-', i), 'g')
-    writeMarkers(markers.donor[i], paste0(args$o, '-', i), 'm')
+    markers.donor[[i]] <- markers(mergeruns[[i]], quick=args$quick)
+    print(head(markers.donor[[i]]))
+    writeMarkers(markers.donor[[i]], paste0(args$o, '-', i), 'g')
+    writeMarkers(markers.donor[[i]], paste0(args$o, '-', i), 'm')
   }
   mergeruns.markers <- Reduce(function(x, y) merge(x = x, y = y, by = 'Row.names'),
                               markers.donor)
@@ -64,6 +71,6 @@ if(args$split) {
   writeMarkers(mergeruns.markers, args$o, 'm')
 }
 
-saveRDS(mergeruns.markers, paste('./data/', args$o, '.rds', sep = ''))
+saveRDS(mergeruns.markers, paste(args$o, '.rds', sep = ''))
 
 
