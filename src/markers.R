@@ -15,7 +15,6 @@ markers <- function(data, quick = FALSE){
 }
 
 writeMarkers <- function(data, outstem, cond) {
-  print(head(data))
   if (cond == 'g') {
     markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff > 0.25), ]
     markers <- data[(data$myAUC > 0.70), ]
@@ -23,8 +22,6 @@ writeMarkers <- function(data, outstem, cond) {
     markers_all <- data[(data$p_val_adj < 0.05 & data$avg_diff < -0.25), ]
     markers <- data[(data$myAUC < 0.30), ]
   }
-  print(head(markers))
-  print(head(markers_all))
   markers_all <- c(markers_all$Row.names)
   markers <- c(markers$Row.names)
   
@@ -46,9 +43,9 @@ parser$add_argument('-i', type="character", nargs=1,
                     help='cleaned file for input')
 parser$add_argument('-o', type='character', nargs=1,
                     help='filestem for marker output')
-parser$add_argument('--quick', action='store_false', default=FALSE,
+parser$add_argument('--quick', action='store_true', default=FALSE,
                     help='omit full data analysis')
-parser$add_argument('--split', action='store_false', default=FALSE,
+parser$add_argument('--split', action='store_true', default=FALSE,
                     help='split by donor for analysis')
 args <- parser$parse_args()
 mergeruns <- readRDS(args$i)
@@ -57,7 +54,9 @@ if(args$split) {
   mergeruns <- SplitObject(mergeruns, split.by='donor')
   markers.donor <- lapply(1:length(mergeruns), c)
   print(markers.donor)
+  print('True')
   for (i in seq_along(mergeruns)) {
+    print(i)
     markers.donor[[i]] <- markers(mergeruns[[i]], quick=args$quick)
     print(head(markers.donor[[i]]))
     writeMarkers(markers.donor[[i]], paste0(args$o, '-', i), 'g')
@@ -65,7 +64,9 @@ if(args$split) {
   }
   mergeruns.markers <- Reduce(function(x, y) merge(x = x, y = y, by = 'Row.names'),
                               markers.donor)
+  
 } else {
+  print('False')
   mergeruns.markers <- markers(mergeruns, quick=args$quick)
   writeMarkers(mergeruns.markers, args$o, 'g')
   writeMarkers(mergeruns.markers, args$o, 'm')
