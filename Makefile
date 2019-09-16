@@ -51,7 +51,7 @@ fig-can-markers: fig/markers-canonical-stim.svg fig/markers-canonical-donor.svg
 fig-markers: fig-new-markers fig-can-markers
 fig-qc: fig/qc-metrics-stim.svg fig/qc-metrics-donor.svg
 
-fig/%-stim.svg: src/plotMarkers.R #data/qc-mergeruns.Rds
+fig/%-stim.svg: src/plotMarkers.R src/plotutils.R #data/qc-mergeruns.Rds
 	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/$*
 fig/%-donor.svg: 
 	@if test -f $@; then :; else \
@@ -62,11 +62,11 @@ fig2: fig/fig2a-markers-canonical-subset.svg \
       fig/fig2c-markers-all-subset.svg \
       fig/fig2d-mf-simp.svg
 
-fig/fig2a-%.svg: src/plotMarkers.R
+fig/fig2a-%.svg: src/plotMarkers.R src/plotutils.R
 	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/fig2a-$* \
-	-ncol 4
+	-ncol 2
 
-fig/fig2c-%.svg: src/plotMarkers.R
+fig/fig2c-%.svg: src/plotMarkers.R src/plotutils.R
 	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/fig2c-$* \
 	-ncol 4 
 
@@ -94,11 +94,11 @@ data/markers-canonical.txt:
 data/markers-canonical-subset.txt:
 data/markers-%.txt: data/markers-%-g.txt data/markers-%-m.txt
 	cat data/$*-g.txt data/$*-m.txt > data/$*.txt ;
-fig/heatmap-%.svg: src/plotHeatmap.R data/%.txt
+fig/heatmap-%.svg: src/plotHeatmap.R data/%.txt src/plotutils.R
 	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o $@
 
 volcano: fig/volcano-markers.svg
-fig/volcano-markers.svg: src/plotVolcano.R
+fig/volcano-markers.svg: src/plotVolcano.R src/plotutils.R
 	Rscript $< -i data/markers.rds -o $@
 
 
@@ -107,9 +107,9 @@ goplot: fig/g-mf-simp.svg fig/m-mf-simp.svg \
 	fig/all-g-mf-simp.svg fig/all-m-mf-simp.svg \
 	fig/all-g-bp-simp.svg fig/all-m-bp-simp.svg 
 
-fig/fig2d-%-simp.svg: src/plotGO.R
+fig/fig2d-%-simp.svg: src/plotGO.R src/plotutils.R
 	Rscript $< -i data/enrich/g-$*-simp.csv data/enrich/m-$*-simp.csv \
 	-o $@
-fig/%-simp.svg: src/plotGO.R #data/enrich/%.csv
+fig/%-simp.svg: src/plotGO.R src/plotutils.R
 	Rscript $< -i data/enrich/$*-simp.csv -o $@
 
