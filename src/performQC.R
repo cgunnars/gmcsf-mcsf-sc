@@ -22,9 +22,7 @@ backgroundSet <- function(mergeruns) {
   background <- Reduce(intersect, 
                        lapply(mergeruns, function(x) GetAssayData(object = x)@Dimnames[[1]]))
   background <- Matrix::rowSums(GetAssayData(merge(mergeruns[[1]], mergeruns[2:length(mergeruns)]), slot = 'counts')[background, ])
-  
   background <- names(background[background > 100])
-  
   outfile<-file('data/background-genes.txt')
   writeLines(background, outfile)
   close(outfile)
