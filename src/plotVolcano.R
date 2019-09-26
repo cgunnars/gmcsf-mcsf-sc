@@ -20,6 +20,8 @@ args <- parser$parse_args()
 res <- readRDS(args$i)
 volcano <- ggplot(res, aes(avg_logFC, -log10(p_val_adj))) + 
            geom_point(size = 0.1) +
+	   geom_point(data = subset(res, (abs(avg_logFC) < 0.25 | p_val_adj > 0.05)), size = 0.1,
+		      color = 'gray40', alpha = 1.0) +
            geom_point(data = subset(res, (myAUC > 0.7)), size = 0.1,
                       color = gg_color_hue(1), alpha = 1.0) + 
            geom_point(data = subset(res, (myAUC < 0.3)), size = 0.1,
@@ -30,7 +32,7 @@ volcano <- ggplot(res, aes(avg_logFC, -log10(p_val_adj))) +
            #geom_vline(xintercept = -0.25, linetype = 'dotted') +
            geom_text_repel(size = (6 * 5 / 14), min.segment.length = 0.5, segment.size = 0.5 * 5 / 14, 
                            box.padding = unit(3, 'pt'),
-                           force = 25, 
+                           force = 50, 
                            aes(x = avg_logFC, y = -log10(p_val_adj), 
                            label = ifelse((myAUC > 0.75 | myAUC < 0.25), res$Row.names, ""))) +
            My_Theme + 

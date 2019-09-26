@@ -44,7 +44,7 @@ msigk <- setReadable(enrichKEGG(gene = gs2eg(markers), universe = gs2eg(backgrou
 write.csv(msigk, file=paste(args$o, '-kegg.csv', sep=''))
 print('MF started')
 msigmf <- setReadable(enrichGO(gs2eg(markers), org.Hs.eg.db, ont = 'MF', universe = gs2eg(background)), OrgDb = org.Hs.eg.db)
-msigmf_simp <- simplify(msigmf, cutoff=0.6)
+msigmf_simp <- simplify(msigmf, cutoff=0.5)
 write.csv(msigmf@result, file=paste(args$o, '-mf.csv', sep=''))
 write.csv(msigmf_simp@result, file=paste(args$o, '-mf-simp.csv', sep=''))
 print('BP started')

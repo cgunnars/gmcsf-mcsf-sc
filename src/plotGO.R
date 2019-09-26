@@ -40,13 +40,14 @@ for (i in seq_along(args$i)) {
      	     geom_point(aes(size = Enrichment), color = gg_color_hue(i)) +
      	     scale_x_continuous(limits = c(0, ceiling(max(-log10(go_df$pvalue)))), breaks = pretty_breaks()) +
 	         scale_size_area(max_size = 4, guide = guide_legend(title.position = "top")) + 
-	         scale_y_discrete(labels = function(x) str_wrap(x, width = 15)) +
+	         scale_y_discrete(labels = function(x) str_wrap(x, width = 18)) +
 	         theme_bw() + 
 	         theme(legend.title.align = 0.5, panel.border = element_blank(), panel.grid.major = element_blank(),
 	               panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
 	         xlab(expression('-log'[10]*'(FDR)')) +
+		 xlim(0, 4) +
 	         ylab(NULL) +
-	         My_Theme 
+	         My_Theme
   plots[[i]] <- p
 }
 
