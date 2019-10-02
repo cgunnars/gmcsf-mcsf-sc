@@ -18,6 +18,11 @@ parser$add_argument('-o', type='character', nargs=1,
 args <- parser$parse_args()
 
 res <- readRDS(args$i)
+markers <- res[order(res$myAUC),]$Row.names
+topmarkers <- c(markers[1:2], markers[(length(markers)-1):length(markers)])
+print(markers[(length(markers)-1):length(markers)])
+
+print(topmarkers)
 volcano <- ggplot(res, aes(avg_logFC, -log10(p_val_adj))) + 
            geom_point(size = 0.1) +
 	   geom_point(data = subset(res, (abs(avg_logFC) < 0.25 | p_val_adj > 0.05)), size = 0.1,
@@ -34,7 +39,7 @@ volcano <- ggplot(res, aes(avg_logFC, -log10(p_val_adj))) +
                            box.padding = unit(3, 'pt'),
                            force = 50, 
                            aes(x = avg_logFC, y = -log10(p_val_adj), 
-                           label = ifelse((myAUC > 0.75 | myAUC < 0.25), res$Row.names, ""))) +
+                           label = ifelse((Row.names %in% topmarkers), res$Row.names, ""))) +
            My_Theme + 
            xlab(expression('Average log'[2]*' fold change')) +
            ylab(expression('-log'[10]*'(Bonferroni-corrected p value)')) +

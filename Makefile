@@ -50,14 +50,17 @@ fig-new-markers: fig/markers-g-stim.svg fig/markers-g-donor.svg fig/markers-m-st
 fig-can-markers: fig/markers-canonical-stim.svg fig/markers-canonical-donor.svg
 fig-markers: fig-new-markers fig-can-markers
 fig-qc: fig/qc-metrics-stim.svg fig/qc-metrics-donor.svg
-
-fig/%-stim.svg: src/plotMarkers.R src/plotutils.R #data/qc-mergeruns.Rds
-	Rscript $< -i data/qc-mergeruns.Rds -m data/$*.txt -o fig/$*
-fig/%-donor.svg: 
+fig/markers-%-stim.svg: src/plotMarkers.R src/plotutils.R #data/qc-mergeruns.Rds
+	Rscript $< -i data/qc-mergeruns.Rds -m data/markers-$*.txt -o fig/markers-$*
+fig/markers-%-donor.svg: 
 	@if test -f $@; then :; else \
 		rm -f $<; \
 		make $<; \
 	fi
+fig/qc-metrics-stim.svg: src/plotQC.R src/plotutils.R
+	Rscript $< -i data/qc-mergeruns.Rds -m data/qc-metrics.txt -o fig/qc-metrics \
+	-ncol 3
+
 fig2: fig/fig2a-markers-canonical-subset.svg \
       fig/fig2c-markers-all-subset.svg \
       fig/fig2d-mf-simp.svg
